@@ -44,6 +44,16 @@
         "database_name": {
           "type": "string",
           "description": "The name of the database. If not provided, the default neondb or first available database is used."
+        },
+        "role_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The PostgreSQL role to authenticate as. If omitted, the current default database-owner behavior is used."
+        },
+        "compute_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The compute/endpoint to connect through. If omitted, the current default read-write compute resolution is used."
         }
       },
       "required": [
@@ -86,6 +96,16 @@
         "database_name": {
           "type": "string",
           "description": "The name of the database. If not provided, the default neondb or first available database is used."
+        },
+        "role_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The PostgreSQL role to authenticate as. If omitted, the current default database-owner behavior is used."
+        },
+        "compute_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The compute/endpoint to connect through. If omitted, the current default read-write compute resolution is used."
         }
       },
       "required": [
