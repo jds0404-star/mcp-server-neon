@@ -62,8 +62,9 @@ jobs:
           start = source.index(begin) + len(begin)
           stop = source.index(end, start)
           patch_script = textwrap.dedent(source[start:stop])
-          old = "proof = r'''"
-          new = "proof = '''"
+          quotes = chr(39) * 3
+          old = "proof = r" + quotes
+          new = "proof = " + quotes
           if patch_script.count(old) != 1:
               raise SystemExit(
                   f'expected exactly one raw proof marker, found {patch_script.count(old)}'
@@ -73,20 +74,50 @@ jobs:
 
           test_path = Path('mcp/__tests__/live/mcp-server.live.e2e.test.ts')
           test_text = test_path.read_text()
-          old_shape = "      const branchList = z\n        .object({\n          branches: z.array(z.object({ id: z.string(), name: z.string() })),\n        })\n        .parse(\n"
-          new_shape = "      const branchList = z\n        .array(z.object({ id: z.string(), name: z.string() }))\n        .parse(\n"
-          if test_text.count(old_shape) != 1:
-              raise SystemExit(
-                  f'expected one object-shaped branch parser, found {test_text.count(old_shape)}'
-              )
-          test_text = test_text.replace(old_shape, new_shape, 1)
-          old_find = "      const mainBranch = branchList.branches.find(\n"
-          new_find = "      const mainBranch = branchList.find(\n"
-          if test_text.count(old_find) != 1:
-              raise SystemExit(
-                  f'expected one branchList.branches.find call, found {test_text.count(old_find)}'
-              )
-          test_text = test_text.replace(old_find, new_find, 1)
+
+          def replace_once(old_text: str, new_text: str, label: str) -> None:
+              global test_text
+              count = test_text.count(old_text)
+              if count != 1:
+                  raise SystemExit(f'expected one {label}, found {count}')
+              test_text = test_text.replace(old_text, new_text, 1)
+
+          replace_once(
+              "      const branchList = z\n        .object({\n          branches: z.array(z.object({ id: z.string(), name: z.string() })),\n        })\n        .parse(\n",
+              "      const branchList = z\n        .array(z.object({ id: z.string(), name: z.string() }))\n        .parse(\n",
+              'object-shaped branch parser',
+          )
+          replace_once(
+              "      const mainBranch = branchList.branches.find(\n",
+              "      const mainBranch = branchList.find(\n",
+              'branchList.branches.find call',
+          )
+          replace_once(
+              "  let defaultBranchId = '';\n",
+              "  let defaultBranchId = '';\n  let defaultRoleName = '';\n",
+              'defaultBranchId state line',
+          )
+          replace_once(
+              "      expect(defaultBranchId).toMatch(/^br-/);\n",
+              "      expect(defaultBranchId).toMatch(/^br-/);\n\n      const ownerIdentity = z\n        .array(z.object({ current_user: z.string() }))\n        .parse(\n          JSON.parse(\n            assertToolSucceeded(\n              'run_sql/default-owner-identity',\n              await callTool('run_sql', {\n                project_id: projectId,\n                branch_id: defaultBranchId,\n                sql: 'SELECT current_user',\n              }),\n            ),\n          ),\n        );\n      defaultRoleName = ownerIdentity[0]?.current_user ?? '';\n      expect(defaultRoleName).not.toBe('');\n",
+              'default branch assertion',
+          )
+          replace_once(
+              "      assertToolSucceeded(\n        'run_sql_transaction/setup-role-targeting',\n",
+              "      assertToolSucceeded(\n        'run_sql/revoke-neon-superuser',\n        await callTool('run_sql', {\n          project_id: projectId,\n          branch_id: defaultBranchId,\n          sql: `REVOKE neon_superuser FROM ${ROLE_TARGET_ROLE}`,\n        }),\n      );\n\n      const superuserMembership = z\n        .array(z.object({ member: z.boolean() }))\n        .parse(\n          JSON.parse(\n            assertToolSucceeded(\n              'run_sql/verify-neon-superuser-revoked',\n              await callTool('run_sql', {\n                project_id: projectId,\n                branch_id: defaultBranchId,\n                sql: `SELECT EXISTS (\n                  SELECT 1\n                  FROM pg_auth_members membership\n                  JOIN pg_roles granted_role\n                    ON granted_role.oid = membership.roleid\n                  JOIN pg_roles member_role\n                    ON member_role.oid = membership.member\n                  WHERE granted_role.rolname = 'neon_superuser'\n                    AND member_role.rolname = '${ROLE_TARGET_ROLE}'\n                ) AS member`,\n              }),\n            ),\n          ),\n        );\n      expect(superuserMembership[0]?.member).toBe(false);\n\n      assertToolSucceeded(\n        'run_sql_transaction/setup-role-targeting',\n",
+              'role setup marker',
+          )
+          replace_once(
+              "        neonClient.getConnectionUri({\n          projectId,\n          database_name: 'neondb',\n        }),\n",
+              "        neonClient.getConnectionUri({\n          projectId,\n          role_name: defaultRoleName,\n          database_name: 'neondb',\n        }),\n",
+              'default direct connection call',
+          )
+          replace_once(
+              "        neonClient.getConnectionUri({\n          projectId,\n          database_name: OTHER_DATABASE,\n        }),\n",
+              "        neonClient.getConnectionUri({\n          projectId,\n          role_name: defaultRoleName,\n          database_name: OTHER_DATABASE,\n        }),\n",
+              'secondary direct connection call',
+          )
+
           test_path.write_text(test_text)
           PY
           pnpm exec prettier --write mcp/__tests__/live/mcp-server.live.e2e.test.ts
