@@ -47,6 +47,7 @@ jobs:
           python - <<'PY'
           import subprocess
           import textwrap
+          from pathlib import Path
 
           source = subprocess.check_output(
               [
@@ -69,6 +70,32 @@ jobs:
               )
           patch_script = patch_script.replace(old, new, 1)
           exec(compile(patch_script, 'corrected-live-role-proof.py', 'exec'), {})
+
+          test_path = Path('mcp/__tests__/live/mcp-server.live.e2e.test.ts')
+          test_text = test_path.read_text()
+          old_shape = """      const branchList = z
+        .object({
+          branches: z.array(z.object({ id: z.string(), name: z.string() })),
+        })
+        .parse(
+"""
+          new_shape = """      const branchList = z
+        .array(z.object({ id: z.string(), name: z.string() }))
+        .parse(
+"""
+          if test_text.count(old_shape) != 1:
+              raise SystemExit(
+                  f'expected one object-shaped branch parser, found {test_text.count(old_shape)}'
+              )
+          test_text = test_text.replace(old_shape, new_shape, 1)
+          old_find = "      const mainBranch = branchList.branches.find(\n"
+          new_find = "      const mainBranch = branchList.find(\n"
+          if test_text.count(old_find) != 1:
+              raise SystemExit(
+                  f'expected one branchList.branches.find call, found {test_text.count(old_find)}'
+              )
+          test_text = test_text.replace(old_find, new_find, 1)
+          test_path.write_text(test_text)
           PY
           pnpm exec prettier --write mcp/__tests__/live/mcp-server.live.e2e.test.ts
           test "$(git diff --name-only)" = "mcp/__tests__/live/mcp-server.live.e2e.test.ts"
