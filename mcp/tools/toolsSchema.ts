@@ -32,6 +32,20 @@ export const runSqlInputSchema = z
         'An optional ID of the branch to execute the query against. If not provided the default branch is used.',
       ),
     database_name: z.string().optional().describe(DATABASE_NAME_DESCRIPTION),
+    role_name: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'The PostgreSQL role to authenticate as. If omitted, the current default database-owner behavior is used.',
+      ),
+    compute_id: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'The compute/endpoint to connect through. If omitted, the current default read-write compute resolution is used.',
+      ),
   })
   .strict();
 
@@ -50,6 +64,20 @@ export const runSqlTransactionInputSchema = z
         'An optional ID of the branch to execute the query against. If not provided the default branch is used.',
       ),
     database_name: z.string().optional().describe(DATABASE_NAME_DESCRIPTION),
+    role_name: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'The PostgreSQL role to authenticate as. If omitted, the current default database-owner behavior is used.',
+      ),
+    compute_id: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'The compute/endpoint to connect through. If omitted, the current default read-write compute resolution is used.',
+      ),
   })
   .strict();
 
