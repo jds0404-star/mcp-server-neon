@@ -1,0 +1,44 @@
+name: Fix live proof helper string
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feat/run-sql-role-targeting'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: feat/run-sql-role-targeting
+      - name: Fix only raw-string marker
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/apply-live-role-proof.yml')
+          text = path.read_text()
+          old = "proof = r'''"
+          new = "proof = '''"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one raw proof marker, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          rm .github/workflows/fix-live-proof-helper.yml
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' '.github/workflows/apply-live-role-proof.yml' '.github/workflows/fix-live-proof-helper.yml' | sort)"
+          test "$actual" = "$expected"
+      - name: Commit fix and remove helper
+        run: |
+          git config user.name 'buffr-cto-cio'
+          git config user.email 'actions@users.noreply.github.com'
+          git add .github/workflows/apply-live-role-proof.yml .github/workflows/fix-live-proof-helper.yml
+          git commit -m 'fix: correct live proof patch string'
+          git push origin HEAD:feat/run-sql-role-targeting
