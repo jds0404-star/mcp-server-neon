@@ -179,9 +179,8 @@ describe('role-targeted SQL handler propagation', () => {
       }),
     );
     expect(serverless.query).toHaveBeenCalledWith('SELECT 1');
-    expect(serverless.transaction).toHaveBeenCalledWith(
-      expect.any(Array),
-      { readOnly: true },
-    );
+    expect(serverless.transaction).toHaveBeenCalledWith(expect.any(Array), {
+      readOnly: true,
+    });
   });
 });
